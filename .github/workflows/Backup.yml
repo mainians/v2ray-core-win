@@ -1,0 +1,44 @@
+name: Linux Ubuntu Cross Compile v2ray-core For Windows 10 Pro x64
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Run a multi-line script
+        run: |
+          rm -fr *
+          sudo apt update
+          sudo apt install upx git -y
+          sudo snap install go --classic
+          git clone https://github.com/v2fly/v2ray-core v2ray-core > /dev/null
+          cd v2ray-core
+          cgo_enabled=0 GOOS=windows GOARCH=amd64 go build -o $GITHUB_WORKSPACE/v2ray.exe -trimpath -ldflags "-s -w -buildid=" ./main
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $GITHUB_WORKSPACE/wv2ray.exe -trimpath -ldflags "-s -w -H windowsgui -buildid=" ./main
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o $GITHUB_WORKSPACE/v2ctl.exe -trimpath -ldflags "-s -w -buildid=" -tags confonly ./infra/control/main
+
+          cd $GITHUB_WORKSPACE
+          rm -rf v2ray-core
+          upx -9 *
+
+
+          echo -e "|    Size   |     DL  | sha512sum |\n|  ---  |  ---  |  ---  |" > README.md
+          shopt -s extglob
+          for file in $(ls !(*.md)); do
+            echo "| $(expr $(wc -c < $file )  / 1000000  | numfmt --to=iec-i --suffix=MB --format="%f") | [$file](https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/$file) | $(sha512sum  $file | cut -d " " -f1 ) |" >> README.md
+          done
+
+          git init
+          git add .
+          git config user.name "googleians"
+          git config user.email "77716481+googleians@users.noreply.github.com"
+          git commit -m "binary of v2ray-core for windows 10 Pro amd64 "
+          git tag -a "$(date +"%d-%m-%Y")" -m "$(date +"%d-%m-%Y")"
+          git remote add release "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}"
+          git push -u --follow-tags release main -f
