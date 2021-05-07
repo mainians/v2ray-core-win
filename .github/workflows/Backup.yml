@@ -1,6 +1,8 @@
 name: Linux Ubuntu Cross Compile v2ray-core For Windows 10 Pro x64
 
 on:
+  schedule:
+    - cron: "10 10 1-31/2 * *"
   push:
     branches: [main]
 
